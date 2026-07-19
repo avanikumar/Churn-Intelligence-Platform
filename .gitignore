@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.env
+mlruns/
+*.egg-info/
+.pytest_cache/
+.DS_Store
+data/customers.csv
+models/*.pkl
+models/*.json
+catboost_info/
+mlflow.db
