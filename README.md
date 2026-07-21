@@ -1,199 +1,129 @@
 # Enterprise Customer Churn Intelligence Platform
 
-An end-to-end ML system that doesn't just predict churn — it explains *why*
-a customer is at risk and recommends *what to do about it*.
+An end-to-end machine learning system that predicts customer churn, explains the drivers behind each prediction, quantifies customer value, and recommends the retention action with the highest expected return — rather than stopping at a risk score.
+
+Most churn projects answer one question: *who is going to leave?* This platform is built to answer four:
+
+- **Who** is likely to churn
+- **Why** they're likely to churn
+- **What** action should be taken
+- **Which** retention strategy delivers the best ROI
+
+## Architecture
 
 ```
-Customer Data (CSV / synthetic generator)
-        │
-        ▼
-Feature Engineering (src/features.py)
-        │
-        ▼
-Model Training + Comparison (src/train.py)
-   Logistic Regression | Random Forest | XGBoost | LightGBM | CatBoost
-   → tracked with MLflow
-        │
-        ▼
-Explainability (src/explain.py — SHAP)
-        │
-        ▼
-Retention Recommendation (src/recommend.py)
-        │
-        ▼
-REST API (src/api.py — FastAPI)
-        │
-        ▼
-Dashboard (dashboard/app.py — Streamlit)
+Customer Data
+    │
+    ▼
+Feature Engineering
+    │
+    ▼
+Churn Prediction (LightGBM / XGBoost / CatBoost)
+    │
+    ▼
+Explainability (SHAP)
+    │
+    ▼
+Customer Segmentation
+    │
+    ▼
+Customer Lifetime Value
+    │
+    ▼
+Retention Strategy Generator (LLM)
+    │
+    ▼
+Dashboard (React)
+    │
+    ▼
+REST API (FastAPI)
+    │
+    ▼
+Docker + AWS
 ```
 
-## What this demonstrates
+## Design rationale
 
-- Comparing multiple ML models on the same problem, not just picking one
-- Explainability (SHAP) instead of a black-box score
-- Turning a model output into a business recommendation
-- A real API, not just a notebook
-- Experiment tracking (MLflow)
-- Containerization (Docker)
-- Basic CI (GitHub Actions)
-- Tests
+A churn probability alone isn't actionable. A customer flagged as "high risk" could be a lost cause no offer will retain, a customer who was never going to leave, or a customer whose lifetime value doesn't justify the cost of a retention offer in the first place. Treating all high-risk customers identically wastes retention budget on the wrong people.
 
-## Project structure
+This platform addresses that by combining four signals before recommending any action:
+
+1. **Churn probability** — from gradient-boosted models trained on engineered customer features
+2. **Explanation** — SHAP values showing which factors are driving each prediction, at both the population and individual customer level
+3. **Customer lifetime value** — so retention effort is prioritized by value, not risk alone
+4. **Treatment effect / uplift** — to separate customers who can actually be influenced by a retention offer from those who can't
+
+The retention strategy layer is grounded in these outputs rather than generating recommendations from an LLM in isolation, which avoids unsupported or hallucinated numbers in the final recommendation.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Modeling | Python, LightGBM, XGBoost, CatBoost |
+| Explainability | SHAP |
+| Experiment tracking | MLflow |
+| Backend / API | FastAPI |
+| Database | PostgreSQL |
+| Frontend | React |
+| Deployment | Docker, AWS EC2 |
+
+## Project status
+
+| Module | Status |
+|---|---|
+| Data cleaning & feature engineering | Complete |
+| Churn prediction models (LightGBM, XGBoost, CatBoost) | Complete |
+| SHAP explainability | Complete |
+| Customer segmentation | In progress |
+| Customer lifetime value | Planned |
+| Uplift / retention ROI modeling | Planned |
+| LLM-based retention strategy generator | Planned |
+| FastAPI backend | Planned |
+| React dashboard | Planned |
+| Docker + AWS deployment | Planned |
+
+## Repository structure
 
 ```
-churn-intelligence-platform/
-├── data/
-│   └── generate_data.py      # creates a synthetic dataset
+├── data/                  # raw and processed data (excluded via .gitignore)
+├── notebooks/             # exploratory analysis and experiments
 ├── src/
-│   ├── features.py           # feature engineering (shared by train + API)
-│   ├── train.py               # trains & compares 5 models, logs to MLflow
-│   ├── explain.py             # SHAP explainability wrapper
-│   ├── recommend.py           # turns predictions into recommended actions
-│   └── api.py                  # FastAPI service
-├── dashboard/
-│   └── app.py                  # Streamlit business dashboard
-├── tests/
-│   └── test_api.py
-├── .github/workflows/ci.yml   # CI: installs, trains, tests on every push
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
+│   ├── features/          # feature engineering pipeline
+│   ├── models/            # LightGBM / XGBoost / CatBoost training
+│   ├── explainability/    # SHAP analysis
+│   ├── segmentation/      # RFM and clustering
+│   ├── clv/               # customer lifetime value estimation
+│   ├── retention/         # uplift modeling and strategy generation
+│   └── api/               # FastAPI application
+├── frontend/              # React dashboard
+├── docker/                # Dockerfiles and docker-compose configuration
+└── docs/                  # additional documentation and references
 ```
 
-## Quickstart (run locally, no Docker)
+## Setup
 
 ```bash
-# 1. Create a virtual environment
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+git clone https://github.com/<your-username>/churn-intelligence-platform.git
+cd churn-intelligence-platform
 
-# 2. Install dependencies
+python -m venv venv
+source venv/bin/activate      # venv\Scripts\activate on Windows
+
 pip install -r requirements.txt
 
-# 3. Generate the synthetic dataset
-python data/generate_data.py
-
-# 4. Train and compare models (saves the best one to models/)
-python src/train.py
-
-# 5. Start the API
-uvicorn src.api:app --reload --port 8000
-# → open http://localhost:8000/docs to try it interactively
-
-# 6. In a second terminal, start the dashboard
-streamlit run dashboard/app.py
+python src/models/train.py
 ```
 
-## Quickstart (Docker)
+Docker Compose instructions will be added once the API and frontend reach a runnable state.
 
-```bash
-docker compose up --build
-# API available at http://localhost:8000
-```
+## Data
 
-## Swapping in real data
+Development uses a public churn dataset (details in `data/README.md`), since the objective is to demonstrate the modeling and system-design approach rather than report results on proprietary enterprise data. The architecture is designed to generalize to any tabular customer dataset with usage, billing, and support-interaction history.
 
-Replace `data/customers.csv` with your own dataset (e.g. the
-[Telco Customer Churn dataset on Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-churn)),
-matching or adapting the column names in `src/features.py`, then re-run
-`python src/train.py`.
+## Contributing / feedback
 
----
+Issues and pull requests are welcome, particularly around the modules still in progress.
 
-# Step-by-step: turning this into your own GitHub repo
+## License
 
-I can't create a repo directly on your GitHub account (I don't have access
-to it) — but here's exactly how to do it in about 5 minutes:
-
-1. **Download the project** using the link I'll share after this message.
-2. **Create a new repo on GitHub**: go to github.com → the "+" icon (top
-   right) → "New repository" → name it e.g. `churn-intelligence-platform`
-   → don't initialize with a README (you already have one) → Create.
-3. **Push your local code** to it:
-   ```bash
-   cd churn-intelligence-platform
-   git init
-   git add .
-   git commit -m "Initial commit: churn intelligence platform"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/churn-intelligence-platform.git
-   git push -u origin main
-   ```
-4. **Verify CI runs**: go to the "Actions" tab on your GitHub repo — you
-   should see the workflow from `.github/workflows/ci.yml` run
-   automatically and pass.
-5. **Polish for recruiters**:
-   - Add a couple of screenshots of the dashboard to the README
-   - Fill in the "About" section on the repo page (one-line description + topics like `machine-learning`, `fastapi`, `mlops`)
-   - Pin the repo on your GitHub profile
-
----
-
-# Learning resources (in the order I'd learn them)
-
-You don't need to master everything before starting — run the project
-first (steps above), then come back to understand each piece.
-
-### 1. Python fundamentals (if shaky)
-- [Python official tutorial](https://docs.python.org/3/tutorial/)
-- [Corey Schafer's Python YouTube series](https://www.youtube.com/playlist?list=PL-osiE80TeTt2d9bfVyTiXJA-UTHn6WwU)
-
-### 2. Pandas (data manipulation — used everywhere in this repo)
-- [Pandas official 10-minute intro](https://pandas.pydata.org/docs/user_guide/10min.html)
-- [Kaggle's free Pandas course](https://www.kaggle.com/learn/pandas)
-
-### 3. Scikit-learn (the ML basics: train/test split, models, metrics)
-- [Scikit-learn "Getting Started"](https://scikit-learn.org/stable/getting_started.html)
-- [Kaggle's Intro to Machine Learning course](https://www.kaggle.com/learn/intro-to-machine-learning)
-
-### 4. Gradient boosting models (XGBoost / LightGBM / CatBoost)
-- [XGBoost official docs — "Introduction to Boosted Trees"](https://xgboost.readthedocs.io/en/stable/tutorials/model.html)
-- [StatQuest's XGBoost video series](https://www.youtube.com/watch?v=OtD8wVaFm6E) (great intuition, no heavy math required)
-- [LightGBM docs](https://lightgbm.readthedocs.io/)
-- [CatBoost docs](https://catboost.ai/docs/)
-
-### 5. SHAP (explainability)
-- [SHAP official docs + examples](https://shap.readthedocs.io/en/latest/)
-- [StatQuest: SHAP values explained](https://www.youtube.com/watch?v=9haIOplEIGM)
-
-### 6. MLflow (experiment tracking)
-- [MLflow "Getting Started" tutorial](https://mlflow.org/docs/latest/getting-started/index.html)
-
-### 7. FastAPI (the backend/API layer)
-- [Official FastAPI tutorial](https://fastapi.tiangolo.com/tutorial/) — genuinely one of the best-written docs of any framework, do this one properly
-- [FreeCodeCamp FastAPI course (video)](https://www.youtube.com/watch?v=0sOvCWFmrtA)
-
-### 8. Streamlit (the dashboard used here — easiest way into building UIs)
-- [Streamlit "Get Started"](https://docs.streamlit.io/get-started)
-
-### 9. Docker (containerization)
-- [Docker's official "Getting Started" guide](https://docs.docker.com/get-started/)
-- [FreeCodeCamp Docker crash course (video)](https://www.youtube.com/watch?v=fqMOX6JJhGo)
-
-### 10. Git & GitHub (if new to this)
-- [GitHub's own Git handbook](https://guides.github.com/introduction/git-handbook/)
-- [Learn Git Branching (interactive)](https://learngitbranching.js.org/)
-
-### 11. (Later) React / Next.js — to replace the Streamlit dashboard
-Once the rest feels comfortable, this is the natural upgrade path to make
-the project even stronger for frontend-adjacent roles:
-- [Next.js official "Learn" course](https://nextjs.org/learn)
-- Point it at the same FastAPI endpoints (`/predict`, `/model-info`) — no backend changes needed.
-
-### 12. (Later) AWS EC2 deployment
-- [AWS's own EC2 "Get Started" guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html)
-- Deploy this repo's `Dockerfile` — search "deploy Docker container to EC2" once you're at this stage.
-
----
-
-## Suggested order to actually build this (so it's not overwhelming)
-
-1. Get the repo running locally exactly as-is (Quickstart above). Don't change anything yet — just get it working.
-2. Read `src/features.py` and `src/train.py` line by line until you understand every line.
-3. Swap in a real dataset (Telco churn from Kaggle) instead of the synthetic one.
-4. Read `src/explain.py`, then `src/api.py`.
-5. Customize `src/recommend.py` — this is the easiest place to add your own "product thinking" (different rules, different messaging).
-6. Push to GitHub, get CI passing.
-7. Write the README screenshots + polish.
-8. (Stretch) Rebuild the dashboard in Next.js.
-9. (Stretch) Deploy to AWS EC2 or Render/Railway (much simpler than EC2 if you want a live demo link fast).
+MIT
