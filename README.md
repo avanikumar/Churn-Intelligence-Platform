@@ -1,6 +1,6 @@
 # Enterprise Customer Churn Intelligence Platform
 
-An end-to-end machine learning system that predicts customer churn, explains the drivers behind each prediction, quantifies customer value, and recommends the retention action with the highest expected return — rather than stopping at a risk score.
+An end-to-end machine learning system that predicts customer churn, explains the drivers behind each prediction, quantifies customer value, and recommends the retention action with the highest expected return -rather than stopping at a risk score.
 
 Most churn projects answer one question: *who is going to leave?* This platform is built to answer four:
 
@@ -48,10 +48,10 @@ A churn probability alone isn't actionable. A customer flagged as "high risk" co
 
 This platform addresses that by combining four signals before recommending any action:
 
-1. **Churn probability** — from gradient-boosted models trained on engineered customer features
-2. **Explanation** — SHAP values showing which factors are driving each prediction, at both the population and individual customer level
-3. **Customer lifetime value** — so retention effort is prioritized by value, not risk alone
-4. **Treatment effect / uplift** — to separate customers who can actually be influenced by a retention offer from those who can't
+1. **Churn probability** -from gradient-boosted models trained on engineered customer features
+2. **Explanation** - SHAP values showing which factors are driving each prediction, at both the population and individual customer level
+3. **Customer lifetime value** - so retention effort is prioritized by value, not risk alone
+4. **Treatment effect / uplift** - to separate customers who can actually be influenced by a retention offer from those who can't
 
 The retention strategy layer is grounded in these outputs rather than generating recommendations from an LLM in isolation, which avoids unsupported or hallucinated numbers in the final recommendation.
 
